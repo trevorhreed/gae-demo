@@ -1,0 +1,24 @@
+html,body{margin:0;padding:0;height:100%;overflow:hidden !important;}
+body > [ui-view]{height:100%;border:0}
+
+[ui-sref],[ng-click]{
+  cursor:pointer;
+  outline:none;
+}
+
+md-icon[md-font-icon^="mdi-"],md-icon[class*=mdi]{
+  font: normal normal normal 24px/1 Material Design Icons;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.md-fab{
+  position:fixed;
+  bottom:20px;
+  right:15px;
+}
+
+.layout-content > md-content {
+  padding: 1rem 1.3rem;
+  box-sizing: border-box;
+}
