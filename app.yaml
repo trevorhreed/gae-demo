@@ -10,18 +10,17 @@ handlers:
   upload: favicon\.ico
 
 - url: /api/.*
-  script: main.app
+  script: server.app
+  login: unauthorized
 
-- url: /www
-  static_dir: www
-
-- url: /login
-  static_files: www/login.html
-  upload: www/login.html
+- url: /static
+  static_dir: static
+  login: required
 
 - url: /
-  static_files: www/index.html
-  upload: www/index.html
+  static_files: static/index.html
+  upload: static/index.html
+  login: required
 
 libraries:
 - name: webapp2
