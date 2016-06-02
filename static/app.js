@@ -54,12 +54,10 @@ app.config(function($stateProvider, $urlRouterProvider, NavLinksProvider){
 });
 
 app.config(function($mdThemingProvider){
-  /*
   $mdThemingProvider
     .theme('default')
-    .primaryPalette('grey')
-    .accentPalette('grey');
-    */
+    .primaryPalette('green')
+    .accentPalette('blue');
 });
 
 app.config(function(apiProvider){
@@ -100,7 +98,6 @@ app.provider('api', function(){
         }
 
         return promise;
-
       }
 
       api.begin = function(){
@@ -180,6 +177,69 @@ app.directive('copyable', function($timeout) {
   }
 })
 
+app.directive('lightboxTrigger', function($compile){
+  return {
+    scope: {
+      lightboxTrigger: '='
+    },
+    link: function(scope, element, attrs){
+      element.on('click', function(){
+        var lightboxScope = scope.$new(true, null);
+        lightboxScope.palette = scope.lightboxTrigger;
+        var lightbox = $compile('<lightbox palette="palette"></lightbox>')(lightboxScope);
+        $(lightbox).hide().appendTo('body').fadeIn();
+      })
+    }
+  }
+})
+app.directive('lightbox', function(){
+  var lightboxCss = css`
+    lightbox{
+      z-index:100;
+      position:fixed;
+      top:0;
+      left:0;
+      bottom:0;
+      right:0;
+      background:rgba(0, 0, 0, .8);
+      padding:1em;
+    }
+    lightbox > md-content{
+      box-sizing:border-box;
+      height:100%;
+    }
+    lightbox color-swatch{
+      height:100% !important;
+      width:auto;
+    }
+  `;
+  $('head').append(`<style>${lightboxCss}</style>`);
+  return {
+    restrict: 'E',
+    scope: {
+      palette: '='
+    },
+    template: html`
+      <md-content layout-gt-sm="row" layout="column" class="lightbox-container md-whiteframe-2dp">
+        <color-swatch ng-repeat="color in palette.colors" color="color" flex copyable></color-swatch>
+      </md-content>
+    `,
+    link: function(scope, element, attrs){
+      function close(){
+        element.fadeOut(function(){
+          element.remove();
+        });
+      }
+      element.on('click', function(){
+        close();
+      });
+      $(document).on('keyup', function(e){
+        if(e.which == 27) close();
+      })
+    }
+  }
+})
+
 app.directive('colorSwatch', function(){
   $('head').append(`<style>
     color-swatch{
@@ -189,8 +249,9 @@ app.directive('colorSwatch', function(){
       height:2em;
       vertical-align:bottom;
       box-sizing:border-box;
-      text-align:center;
-      line-height:2em;
+      display:flex;
+      justify-content: center;
+      align-items: center;
     }
   </style>`);
   function getTextColor(hex){
@@ -363,17 +424,22 @@ route({
   scopedCss: css`
     .palette{
       margin:1em 0;
-      -box-shadow:0 0 1em #aaa;
     }
     color-swatch{
-      line-height:4em;
       height:4em;
       width:auto;
     }
   `,
   template: html`
     <md-content class="md-whiteframe-2dp" ng-repeat="palette in palettes">
-      <h2 class="md-headline" flex ui-sref="site.edit({id: palette.id})">{{palette.title}}</h2>
+      <md-content layout="row" layout-align="center center">
+        <h2 class="md-headline" flex ui-sref="site.edit({id: palette.id})">{{palette.title}}</h2>
+        <md-button class="md-icon-button"
+                    aria-label="Expand"
+                    lightbox-trigger="palette">
+          <md-icon md-font-icon="mdi-arrow-expand"></md-icon>
+        </md-button>
+      </md-content>
       <md-content layout-gt-sm="row" layout="column" class="palette md-whiteframe-2dp">
         <color-swatch ng-repeat="color in palette.colors" color="color" flex copyable>
           {{color}}
@@ -383,25 +449,17 @@ route({
     <md-button class="md-fab" aria-label="New" ui-sref="site.new">
       <md-icon md-font-icon="mdi-plus"></md-icon>
     </md-button>
+    <lightbox-placeholder></lightbox-placeholder>
   `,
   controller: function($scope, api){
     api('GET /palettes').then(function(palettes){
       $scope.palettes = palettes;
     })
 
-    $scope.getTextColor = function(hex){
-      if(hex.length === 3){
-        hex = hex[0] + hex[0] + hex[1] + hex[1] + hex[2] + hex[2];
-      }
-      var r = parseInt(hex.substr(0,2),16);
-      var g = parseInt(hex.substr(2,2),16);
-      var b = parseInt(hex.substr(4,2),16);
-      var yiq = ((r*299)+(g*587)+(b*114))/1000;
-
-      var color = (yiq >= 140) ? 'black' : 'white';
-
-      console.log(hex + ' | ' + color);
-      return color;
+    $scope.expand = function(palette){
+      var html = '<lightbox palette="selectedPalette"></lightbox>';
+      $scope.selectedPalette = palette;
+      $(html).hide().appendTo('lightbox-placeholder').fadeIn();
     }
   }
 })
@@ -427,18 +485,16 @@ route([
       </md-input-container>
       <palette-picker colors="palette.colors" max="8"></palette-picker>
       <div right>
-        <md-button class="md-raised md-accent" aria-label="Save" ng-click="save()">
-          Save
-        </md-button>
-        <md-button class="md-raised md-danger"
+        <md-button class="md-raised md-accent"
+                    aria-label="Save"
+                    ng-click="save()">Save</md-button>
+        <md-button class="md-raised md-warn"
                     ng-if="paletteId"
                     aria-label="Delete"
-                    ng-click="delete()">
-          Delete
-        </md-button>
-        <md-button class="md-raised" aria-label="Cancel" ng-click="cancel()">
-          Cancel
-        </md-button>
+                    ng-click="delete()">Delete</md-button>
+        <md-button class="md-raised"
+                    aria-label="Cancel"
+                    ng-click="cancel()">Cancel</md-button>
       </div>
     </md-content>
   `,
@@ -484,7 +540,5 @@ route([
     }
   }
 })
-
-
 
 angular.bootstrap(document, ['app']);
