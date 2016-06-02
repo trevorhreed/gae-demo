@@ -1,9 +1,14 @@
-@core.app.route('/api/ping')
+import core
+import server
+from server.services import PaletteService
+from google.appengine.api import users
+
+@server.app.route('/api/ping')
 class PingApi(core.Endpoint):
     def get(self):
         return 'pong'
 
-@core.app.route('/api/settings')
+@server.app.route('/api/settings')
 class AppSettings(core.Endpoint):
     def get(self):
         user = users.get_current_user()
@@ -13,7 +18,7 @@ class AppSettings(core.Endpoint):
             'nickname': nickname
         }
 
-@core.app.route('/api/palettes')
+@server.app.route('/api/palettes')
 class PalettesApi(core.Endpoint):
     def get(self):
         return PaletteService.all()
@@ -21,7 +26,7 @@ class PalettesApi(core.Endpoint):
     def post(self):
         return PaletteService.put(self.entity)
 
-@core.app.route('/api/palettes/<id>')
+@server.app.route('/api/palettes/<id>')
 class PaletteApi(core.Endpoint):
     def get(self, id):
         return PaletteService.get(id)

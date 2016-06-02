@@ -1,3 +1,4 @@
+from server.data import Palette
 from google.appengine.ext import ndb
 from google.net.proto.ProtocolBuffer import ProtocolBufferDecodeError
 
@@ -14,6 +15,7 @@ def get(id):
 
 def put(entity):
     model = _get(entity['id']) if 'id' in entity else Palette()
+    del entity['id']
     model.populate(**entity)
     model.put()
     return _serialize(model)

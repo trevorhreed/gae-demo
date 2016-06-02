@@ -11,7 +11,8 @@ handlers:
 
 - url: /api/.*
   script: server.app
-  login: unauthorized
+  login: required
+  auth_fail_action: unauthorized
 
 - url: /static
   static_dir: static

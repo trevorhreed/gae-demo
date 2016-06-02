@@ -38,7 +38,13 @@ class Endpoint(webapp2.RequestHandler):
         self.initialize(request, response)
         self.user = users.get_current_user()
         self.user_id = self.user.user_id if self.user else None
-        self.entity = json.loads(request.body)
+        import logging
+        logging.info(str(type(request.body)))
+        logging.info(str(request.body))
+        try:
+            self.entity = json.loads(request.body)
+        except ValueError:
+            self.entity = {}
 
     def read_json(self):
         return json.loads(self.request.body)
@@ -79,6 +85,3 @@ class App(webapp2.WSGIApplication):
             self.router.add(route)
             return handler
         return wrapper
-
-
-app = App()
