@@ -5,6 +5,7 @@ import webapp2
 import pkgutil
 from time import mktime
 from google.appengine.api import users
+from google.appengine.ext import ndb
 
 def set_api_path(api_path):
     __all__ = []
@@ -37,10 +38,8 @@ class Endpoint(webapp2.RequestHandler):
     def __init__(self, request, response):
         self.initialize(request, response)
         self.user = users.get_current_user()
-        self.user_id = self.user.user_id if self.user else None
-        import logging
-        logging.info(str(type(request.body)))
-        logging.info(str(request.body))
+        self.user_id = self.user.user_id() if self.user else None
+        self.user_key = ndb.Key('User', self.user_id) if self.user else None
         try:
             self.entity = json.loads(request.body)
         except ValueError:

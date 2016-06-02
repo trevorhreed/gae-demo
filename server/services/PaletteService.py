@@ -4,8 +4,8 @@ from google.net.proto.ProtocolBuffer import ProtocolBufferDecodeError
 
 # PUBLIC
 
-def all():
-    models = Palette.query()
+def all(parent_key):
+    models = Palette.query(ancestor=parent_key)
     return _serialize_all(models)
 
 def get(id):
@@ -13,9 +13,9 @@ def get(id):
     if model is None: return None
     return _serialize(model)
 
-def put(entity):
-    model = _get(entity['id']) if 'id' in entity else Palette()
-    del entity['id']
+def put(entity, parent_key):
+    model = _get(entity['id']) if 'id' in entity else Palette(parent=parent_key)
+    if 'id' in entity: del entity['id']
     model.populate(**entity)
     model.put()
     return _serialize(model)

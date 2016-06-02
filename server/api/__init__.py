@@ -21,10 +21,10 @@ class AppSettings(core.Endpoint):
 @server.app.route('/api/palettes')
 class PalettesApi(core.Endpoint):
     def get(self):
-        return PaletteService.all()
+        return PaletteService.all(self.user_key)
 
     def post(self):
-        return PaletteService.put(self.entity)
+        return PaletteService.put(self.entity, self.user_key)
 
 @server.app.route('/api/palettes/<id>')
 class PaletteApi(core.Endpoint):
@@ -32,7 +32,7 @@ class PaletteApi(core.Endpoint):
         return PaletteService.get(id)
 
     def put(self, id):
-        return PaletteService.put(self.entity)
+        return PaletteService.put(self.entity, self.user_key)
 
     def delete(self, id):
         return PaletteService.delete(id)

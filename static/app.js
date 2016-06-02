@@ -54,10 +54,12 @@ app.config(function($stateProvider, $urlRouterProvider, NavLinksProvider){
 });
 
 app.config(function($mdThemingProvider){
+  /*
   $mdThemingProvider
     .theme('default')
     .primaryPalette('grey')
     .accentPalette('grey');
+    */
 });
 
 app.config(function(apiProvider){
@@ -247,7 +249,7 @@ app.directive('palettePicker', function(){
           <label>Color</label>
           <input ng-model="colors[$index]" />
         </md-input-container>
-        <md-button class="md-icon-button" aria-label="Remove Color" ng-click="remove($index)">
+        <md-button class="md-icon-button md-warn" aria-label="Remove Color" ng-click="remove($index)">
           <md-icon md-font-icon="mdi-delete"></md-icon>
         </md-button>
       </div>
@@ -258,7 +260,7 @@ app.directive('palettePicker', function(){
       </div>
     `,
     link: function(scope, element, attrs){
-      scope.colors = scope.colors || ['#FF0088'];
+      scope.colors = scope.colors || [];
 
       scope.add = function(){
         scope.colors.push('#000000');
@@ -289,19 +291,38 @@ route({
         }
       }
     }
+    .layout-wrapper{
+      background:#eee;
+      overflow:auto;
+    }
+    .layout-content{
+      width:40em;
+      max-width:100%;
+      margin:0 auto;
+      background:#eee;
+      overflow:visible;
+    }
+    .layout-content > md-content {
+      margin:1em;
+      padding: 1rem 1.3rem;
+      box-sizing: border-box;
+    }
   `,
   template: html`
     <md-content layout="column" flex>
-      <md-toolbar class="md-toolbar-tools">
-        <h2>Palettes</h2>
+      <md-toolbar class="md-toolbar-tools md-whiteframe-1dp">
+        <h2 ui-sref="site.listing">Palettes</h2>
         <span flex></span>
-        <md-menu md-offset="0 80">
-          <md-button class="md-icon-button" aria-label="Open user menu" ng-click="$mdOpenMenu($event)">
+        <md-menu md-offset="0 65">
+          <md-button class="md-icon-button"
+                      md-menu-origin
+                      aria-label="Open user menu"
+                      ng-click="$mdOpenMenu($event)">
             <md-icon md-font-icon="mdi-account-circle"></md-icon>
           </md-button>
           <md-menu-content>
             <md-menu-item>
-              <span hide-sm>{{nickname}}</span>
+              <span>{{nickname}}</span>
             </md-menu-item>
             <md-menu-item>
               <md-button ng-click="logout()">
@@ -320,6 +341,7 @@ route({
   controller: function($scope, NavLinks, api, $window){
     var settingsPromise = api('GET /settings').then(function(settings){
       $scope.nickname = settings.nickname;
+      return settings;
     })
     $scope.links = NavLinks;
 
@@ -341,17 +363,18 @@ route({
   scopedCss: css`
     .palette{
       margin:1em 0;
-      box-shadow:0 0 1em #aaa;
+      -box-shadow:0 0 1em #aaa;
     }
     color-swatch{
       line-height:4em;
       height:4em;
+      width:auto;
     }
   `,
   template: html`
-    <md-content class="md-whiteframe-5dp" ng-repeat="palette in palettes">
+    <md-content class="md-whiteframe-2dp" ng-repeat="palette in palettes">
       <h2 class="md-headline" flex ui-sref="site.edit({id: palette.id})">{{palette.title}}</h2>
-      <md-content layout="rows" class="palette">
+      <md-content layout-gt-sm="row" layout="column" class="palette md-whiteframe-2dp">
         <color-swatch ng-repeat="color in palette.colors" color="color" flex copyable>
           {{color}}
         </color-swatch>
@@ -402,7 +425,7 @@ route([
         <label>Name</label>
         <input ng-model="palette.title" />
       </md-input-container>
-      <palette-picker colors="palette.colors" max="5"></palette-picker>
+      <palette-picker colors="palette.colors" max="8"></palette-picker>
       <div right>
         <md-button class="md-raised md-accent" aria-label="Save" ng-click="save()">
           Save
@@ -419,7 +442,7 @@ route([
       </div>
     </md-content>
   `,
-  controller: function($scope, $mdToast, $state, $stateParams, paletteApi){
+  controller: function($scope, $mdToast, $mdDialog, $state, $stateParams, paletteApi){
     $scope.paletteId = $stateParams.id;
 
     if($scope.paletteId){
@@ -429,10 +452,10 @@ route([
     }
 
     $scope.save = function(){
-      if(!$scope.title){
+      if(!$scope.palette.title){
         $mdToast.show(
           $mdToast.simple()
-            .textContent('You must enter a title for this palette!')
+            .textContent('Please enter a title')
             .action('Dismiss')
         )
         return;
@@ -443,8 +466,16 @@ route([
     }
 
     $scope.delete = function(){
-      paletteApi.del($scope.paletteId).then(function(){
-        $state.go('site.listing');
+      var confirm = $mdDialog
+        .confirm()
+        .textContent('Are you sure you want to delete this palette?')
+        .ok('Delete')
+        .cancel('Cancel');
+
+      $mdDialog.show(confirm).then(function(){
+        paletteApi.del($scope.paletteId).then(function(){
+          $state.go('site.listing');
+        });
       });
     }
 
