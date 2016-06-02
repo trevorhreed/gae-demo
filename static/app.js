@@ -419,7 +419,7 @@ route([
       </div>
     </md-content>
   `,
-  controller: function($scope, $state, $stateParams, paletteApi){
+  controller: function($scope, $mdToast, $state, $stateParams, paletteApi){
     $scope.paletteId = $stateParams.id;
 
     if($scope.paletteId){
@@ -429,6 +429,14 @@ route([
     }
 
     $scope.save = function(){
+      if(!$scope.title){
+        $mdToast.show(
+          $mdToast.simple()
+            .textContent('You must enter a title for this palette!')
+            .action('Dismiss')
+        )
+        return;
+      }
       paletteApi.put($scope.palette).then(function(){
         $state.go('site.listing');
       });
