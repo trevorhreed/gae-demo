@@ -17,6 +17,13 @@ function route(states, component){
 function css(strings){ return strings.raw[0]; }
 function html(strings){ return strings.raw[0]; }
 
+function addScss(scss, name){
+  Sass.compile(scss, function(css){
+    if(css.status !== 0) throw css.message;
+    $('head').append(`<style type="text/css" ${name}>${css.text}</style>`);
+  })
+}
+
 app.provider('NavLinks', function(){
   var _navLinks = [];
   return {
@@ -39,15 +46,11 @@ app.config(function($stateProvider, $urlRouterProvider, NavLinksProvider){
     }
     (function(route){
       if(route.css){
-        Sass.compile(route.css, function(css){
-          $('head').append(`<style type="text/css" ${route.name}>${css.text}</style>`);
-        });
+        addScss(route.css, route.name);
       }
       if(route.scopedCss){
         var scss = `[css-scope="${route.name}"]{${route.scopedCss}}`;
-        Sass.compile(scss, function(css){
-          $('head').append(`<style type="text/css" ${route.name}>${css.text}</style>`);
-        });
+        addScss(scss, route.name);
       }
     })(routes[i]);
   }
@@ -147,8 +150,42 @@ app.run(function($rootScope, $state){
   })
 })
 
+app.directive('loadingSignal', function () {
+  addScss(css`
+    loading-signal{
+      position:absolute;
+      top:0;right:0;bottom:0;left:0;
+      background:rgba(255, 255, 255, .9);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      cursor:not-allowed;
+      z-index:2;
+    }
+  `);
+	return {
+		restrict: 'E',
+		scope: {
+			active: '=',
+			progress: '='
+		},
+		template: '<md-progress-circular class="md-primary" md-mode="{{mode}}" value="{{progress}}" md-diameter="50"></md-progress-circular>',
+		link: function (scope, element, attrs) {
+			var parentOverflowValue = element.parent().css('overflow');
+			scope.mode = 'indeterminate';
+			scope.$watch('progress', function (progress) {
+				scope.mode = !isNaN(progress) ? 'determinate' : 'indeterminate';
+			})
+			scope.$watch('active', function (active) {
+				element.css('display', scope.active ? 'flex' : 'none');
+				element.parent().css('overflow', scope.active ? 'hidden' : parentOverflowValue);
+			});
+		}
+	}
+})
+
 app.directive('copyable', function($timeout) {
-  $('head').append('<style>[copyable]{cursor:pointer;}</style>');
+  addScss(`[copyable]{cursor:pointer;}`, 'copyable');
   function doSelection(element) {
     if (document.selection) {
       var range = document.body.createTextRange();
@@ -173,6 +210,130 @@ app.directive('copyable', function($timeout) {
           document.execCommand('copy');
         }
       });
+    }
+  }
+})
+
+app.directive('searchBox', function($timeout) {
+  var KEY_FORWARD_SLASH = 191,
+    KEY_ESCAPE = 27;
+
+  function debounce(fn, duration) {
+    var timeout;
+    return function() {
+      $timeout.cancel(timeout);
+      timeout = $timeout(fn, duration);
+    }
+  }
+  addScss(css`
+    search-box{
+      .search-box{
+        display:flex;
+        align-items:center;
+        position:absolute;
+        top:5px;left:5px;bottom:5px;right:5px;
+        background-color:#fff;
+        z-index:10;
+        transition: opacity 6s ease;
+        &.ng-hide{
+          opacity:0;
+        }
+        &.ng-hide-add{
+          transition: opacity linear 100ms;
+        }
+        &.ng-hide-remove{
+          transition: opacity linear 100ms;
+        }
+        input{
+          outline:none;
+          border:none;
+        }
+        .md-button:not(.md-primary) md-icon{color:#aaa}
+      }
+    }
+  `, 'search-box');
+  return {
+    scope: {
+      ngOuterModel: '=?ngModel',
+      mdeOnChange: '&'
+    },
+    template: html`
+      <div class="search-box" ng-show="active" layout="row">
+        <md-button class="md-icon-button md-primary" ng-click="close()" aria-label="Close search">
+            <md-icon md-font-icon="mdi-arrow-left"></md-icon>
+        </md-button>
+        <input flex ng-model="ngOuterModel" ng-keyup="change($event)" placeholder="{{placeholder}}" />
+        <md-button class="md-icon-button" ng-click="clear()" aria-label="Clear search">
+            <md-icon md-font-icon="mdi-close"></md-icon>
+        </md-button>
+      </div>
+      <md-button class="md-icon-button" ng-click="focus()" aria-label="Open search">
+          <md-icon md-font-icon="mdi-magnify"></md-icon>
+      </md-button>
+    `,
+    link: function(scope, element, attrs) {
+      var $inputEl = $('input', element);
+      scope.active = false;
+      scope.placeholder = attrs.placeholder || 'Search';
+      scope.ngOuterModel = scope.ngOuterModel || '';
+
+      function triggerChange(type) {
+        if(scope.mdeOnChange){
+          scope.mdeOnChange({ '$event': type });
+        }
+      }
+      var triggerChangeDebounced = debounce(function() {
+        triggerChange('keyup');
+      }, 500);
+
+      $(document).on('keyup', function(event) {
+        $timeout(function() {
+          if (event.which === KEY_ESCAPE && $('.search-box', element).find(':focus').length > 0) {
+            scope.close();
+          } else if (event.which === KEY_FORWARD_SLASH) {
+            var tag =
+              event &&
+              event.target &&
+              event.target.tagName &&
+              event.target.tagName.toUpperCase &&
+              event.target.tagName.toUpperCase();
+            //tag = tag || void 0; // don't think this is necessary --tr
+            if (tag !== 'INPUT' && tag !== 'TEXTAREA') {
+              scope.focus();
+            }
+          }
+        })
+      });
+
+      function setFocusOnInput() {
+        if ($inputEl.is(':visible')) {
+          $inputEl.focus();
+        } else {
+          $timeout(setFocusOnInput);
+        }
+      }
+
+      scope.focus = function() {
+        scope.active = true;
+        setFocusOnInput();
+      }
+
+      scope.close = function() {
+        scope.active = false;
+        triggerChange('close');
+      }
+
+      scope.change = function($event) {
+        if ($event.which !== KEY_ESCAPE) {
+          triggerChangeDebounced();
+        }
+      }
+
+      scope.clear = function() {
+        $('input', element).val('');
+        triggerChange('clear');
+        scope.focus();
+      }
     }
   }
 })
@@ -304,6 +465,7 @@ app.directive('palettePicker', function($mdDialog, $timeout){
       max: '='
     },
     template: html`
+      <loading-signal active="loading"></loading-signal>
       <div ng-repeat="color in colors track by $index" layout="row" layout-align="center center">
         <color-swatch color="color"></color-swatch>
         <md-input-container flex>
@@ -335,6 +497,7 @@ app.directive('palettePicker', function($mdDialog, $timeout){
       }
 
       scope.generate = function(){
+        scope.loading = true;
         var fileInput = document.createElement('input');
         fileInput.type = 'file';
         fileInput.addEventListener('change', function(e){
@@ -342,7 +505,7 @@ app.directive('palettePicker', function($mdDialog, $timeout){
           reader.onload = function(e){
             var img = document.createElement('img');
             img.src = e.target.result;
-            var vibrant = new Vibrant(img, 256, 1);
+            var vibrant = new Vibrant(img, 256);
             var swatches = vibrant.swatches();
             $timeout(function(){
               scope.colors = [];
@@ -351,6 +514,7 @@ app.directive('palettePicker', function($mdDialog, $timeout){
                   scope.colors.push(swatches[swatch].getHex());
                 }
               }
+              scope.loading = false;
             })
           }
           reader.readAsDataURL(fileInput.files[0]);
@@ -402,6 +566,7 @@ route({
       <md-toolbar class="md-toolbar-tools md-whiteframe-1dp">
         <h2 ui-sref="site.listing">Palettes</h2>
         <span flex></span>
+        <search-box ng-model="search"></search-box>
         <md-menu md-offset="0 65">
           <md-button class="md-icon-button"
                       md-menu-origin
@@ -459,7 +624,7 @@ route({
     }
   `,
   template: html`
-    <md-content class="md-whiteframe-2dp" ng-repeat="palette in palettes">
+    <md-content class="md-whiteframe-2dp" ng-repeat="palette in palettes | filter: search">
       <md-content layout="row" layout-align="center center">
         <h2 class="md-headline" flex ui-sref="site.edit({id: palette.id})">{{palette.title}}</h2>
         <md-button class="md-icon-button"
@@ -509,7 +674,7 @@ route([
         <label>Name</label>
         <input ng-model="palette.title" />
       </md-input-container>
-      <palette-picker colors="palette.colors" max="8"></palette-picker>
+      <palette-picker colors="palette.colors" max="12"></palette-picker>
       <div right>
         <md-button class="md-raised md-accent"
                     aria-label="Save"
