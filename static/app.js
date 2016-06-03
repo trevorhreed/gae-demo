@@ -624,7 +624,7 @@ route({
     }
   `,
   template: html`
-    <md-content class="md-whiteframe-2dp" ng-repeat="palette in palettes | filter: search">
+    <md-content class="md-whiteframe-2dp" ng-repeat="palette in palettes | filter: search | orderBy:'title'">
       <md-content layout="row" layout-align="center center">
         <h2 class="md-headline" flex ui-sref="site.edit({id: palette.id})">{{palette.title}}</h2>
         <md-button class="md-icon-button"
