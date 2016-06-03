@@ -281,7 +281,7 @@ app.directive('colorSwatch', function(){
   }
 })
 
-app.directive('palettePicker', function(){
+app.directive('palettePicker', function($mdDialog, $timeout){
   $('head').append(`<style>
     palette-picker{
       display:block;
@@ -318,6 +318,9 @@ app.directive('palettePicker', function(){
         <md-button aria-label="Add Color" ng-click="add()">
           Add Color
         </md-button>
+        <md-button aria-label="Generate From Image" ng-click="generate()">
+          Generate From Image...
+        </md-button>
       </div>
     `,
     link: function(scope, element, attrs){
@@ -330,6 +333,31 @@ app.directive('palettePicker', function(){
       scope.remove = function($index){
         scope.colors.splice($index, 1);
       }
+
+      scope.generate = function(){
+        var fileInput = document.createElement('input');
+        fileInput.type = 'file';
+        fileInput.addEventListener('change', function(e){
+          var reader = new FileReader();
+          reader.onload = function(e){
+            var img = document.createElement('img');
+            img.src = e.target.result;
+            var vibrant = new Vibrant(img, 256, 1);
+            var swatches = vibrant.swatches();
+            $timeout(function(){
+              scope.colors = [];
+              for(var swatch in swatches){
+                if(swatches.hasOwnProperty(swatch) && swatches[swatch]){
+                  scope.colors.push(swatches[swatch].getHex());
+                }
+              }
+            })
+          }
+          reader.readAsDataURL(fileInput.files[0]);
+        })
+        fileInput.click();
+      }
+
     }
   }
 })
@@ -474,9 +502,7 @@ route([
     url: 'edit/:id'
   }
 ],{
-  scopedCss: css`
-
-  `,
+  scopedCss: css``,
   template: html`
     <md-content class="md-whiteframe-5dp">
       <md-input-container class="md-block">
